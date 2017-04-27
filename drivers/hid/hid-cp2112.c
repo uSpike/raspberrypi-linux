@@ -594,6 +594,8 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 	size_t read_length = 0;
 	unsigned int retries;
 	int ret;
+	int wr_start;
+	int wr_extra;
 
 	hid_dbg(hdev, "%s addr 0x%x flags 0x%x cmd 0x%x size %d\n",
 		read_write == I2C_SMBUS_WRITE ? "write" : "read",
@@ -640,20 +642,23 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 		break;
 	case I2C_SMBUS_I2C_BLOCK_DATA:
 	case I2C_SMBUS_BLOCK_DATA:
-		read_length = I2C_SMBUS_BLOCK_MAX;
+		read_length = data->block[0];
+		wr_start = (size == I2C_SMBUS_BLOCK_DATA) ? 0 : 1;
+		wr_extra = (size == I2C_SMBUS_BLOCK_DATA) ? 1 : 0;
 
 		if (I2C_SMBUS_READ == read_write) {
 			count = cp2112_write_read_req(buf, addr, read_length,
-						      command, NULL, 0);
+						      command, data->block,
+						      wr_extra);
 		} else {
 			count = cp2112_write_req(buf, addr, command,
-						 data->block,
-						 data->block[0] + 1);
+						 &data->block[wr_start],
+						 data->block[0] + wr_extra);
 		}
 		break;
 	case I2C_SMBUS_BLOCK_PROC_CALL:
 		read_write = I2C_SMBUS_READ;
-		read_length = I2C_SMBUS_BLOCK_MAX;
+		read_length = data->block[0];
 
 		count = cp2112_write_read_req(buf, addr, read_length,
 					      command, data->block,
@@ -728,12 +733,7 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 	case I2C_SMBUS_I2C_BLOCK_DATA:
 	case I2C_SMBUS_BLOCK_DATA:
 	case I2C_SMBUS_BLOCK_PROC_CALL:
-		if (read_length > I2C_SMBUS_BLOCK_MAX) {
-			ret = -EPROTO;
-			goto power_normal;
-		}
-
-		memcpy(data->block, buf, read_length);
+		memcpy(&data->block[1], buf, read_length);
 		break;
 	}
 
