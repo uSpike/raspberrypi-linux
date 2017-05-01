@@ -142,7 +142,9 @@ static const int XFER_STATUS_RETRIES = 10;
 
 /* Time in ms to wait for a CP2112_DATA_READ_RESPONSE or
    CP2112_TRANSFER_STATUS_RESPONSE. */
-static const int RESPONSE_TIMEOUT = 50;
+static uint response_timeout = 250;
+module_param(response_timeout, uint, 0644);
+MODULE_PARM_DESC(response_timeout, "Time in ms to wait for a response");
 
 static const struct hid_device_id cp2112_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CYGNAL, USB_DEVICE_ID_CYGNAL_CP2112) },
@@ -318,7 +320,7 @@ static int cp2112_wait(struct cp2112_device *dev, atomic_t *avail)
 	 * we can do anything about it anyway.
 	 */
 	ret = wait_event_interruptible_timeout(dev->wait,
-		atomic_read(avail), msecs_to_jiffies(RESPONSE_TIMEOUT));
+		atomic_read(avail), msecs_to_jiffies(response_timeout));
 	if (-ERESTARTSYS == ret)
 		return ret;
 	if (!ret)
